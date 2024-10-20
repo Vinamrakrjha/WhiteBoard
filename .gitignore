@@ -13,6 +13,9 @@
 # Intermediate files and build directories
 build-*/
 
+# Ignore build directories
+build/
+
 # Compiled object files
 *.o
 *.obj
