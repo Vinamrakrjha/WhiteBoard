@@ -1,5 +1,0 @@
-module WhiteBoard
-typeinfo appWhiteBoard.qmltypes
-prefer :/qt/qml/WhiteBoard/
-Main 1.0 Main.qml
-
