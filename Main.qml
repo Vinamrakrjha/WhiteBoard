@@ -1,29 +1,36 @@
 import QtQuick 2.15
 import QtQuick.Window 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Dialogs
+import QtQuick.Controls.Material 2.15  // Import Material style
 
-Window {
+Window
+{
     visible: true
     width  : 900
     height : 600
     title  : "Whiteboard"
 
-    property bool   drawing      : false
-    property var    allPaths     : []       // Store all paths drawn by the user, along with their colors
-    property var    currentPath  : []       // Store the current path being drawn
-    property string penColor     : "black"  // Current color of the pen
-    property color  bgColor      : "white"  // Background color of the canvas
-    property bool   eraserMode   : false    // Toggle eraser mode
-    property color  eraserColor  : bgColor  // Define eraser color (typically the background color)
-    property real   eraserRadius : 20       // Radius of the eraser for detecting hits
-    property real   pencilWidth  : 2
+    property bool   drawing       : false
+    property var    allCanvases   : [{allPaths : [], bgColor : "white"}]
+    property int    totalPages    : 1
+    property int    currentPageIdx: 1
+    property var    allPaths      : allCanvases[currentPageIdx-1].allPaths  // Store all paths drawn by the user, along with their colors
+    property var    currentPath   : []                                      // Store the current path being drawn
+    property string penColor      : "black"                                 // Current color of the pen
+    property string bgColor       : allCanvases[currentPageIdx-1].bgColor     // Background color of the canvas
+    property bool   eraserMode    : false                                   // Toggle eraser mode
+    property color  eraserColor   : bgColor                                 // Define eraser color (typically the background color)
+    property real   eraserRadius  : 20                                      // Radius of the eraser for detecting hits
+    property real   pencilWidth   : 2
 
     Canvas
     {
         id: canvas
-        anchors.fill: parent
-        anchors.leftMargin: 50
-        anchors.rightMargin: 50
+        anchors
+        {
+            fill       : parent
+        }
         // antialiasing: true
 
         onPaint:
@@ -60,12 +67,14 @@ Window {
             }
 
             // Draw the current path being drawn with the selected pen color
-            if (currentPath.length > 0) {
+            if (currentPath.length > 0)
+            {
                 ctx.lineWidth   = eraserMode ? eraserRadius *2 : pencilWidth  // Increase line width for eraser
-                ctx.strokeStyle = eraserMode ? eraserColor : penColor  // Use eraser color or pen color
+                ctx.strokeStyle = eraserMode ? eraserColor     : penColor  // Use eraser color or pen color
 
                 ctx.beginPath()
-                for (let i = 0; i < currentPath.length; i++) {
+                for (let i = 0; i < currentPath.length; i++)
+                {
                     if (i === 0) {
                         ctx.moveTo(currentPath[i].x, currentPath[i].y)
                     } else {
@@ -75,10 +84,11 @@ Window {
                 ctx.stroke()
             }
 
-            if (eraserMode) {
+            if (eraserMode)
+            {
                 ctx.beginPath()
                 ctx.arc(mouseArea.mouseX, mouseArea.mouseY, eraserRadius, 0, 2 * Math.PI, false)  // Draw a circle around the mouse
-                ctx.lineWidth = 1
+                ctx.lineWidth   = 1
                 ctx.strokeStyle = "black"  // You can change the color of the eraser circle if needed
                 ctx.stroke()
             }
@@ -105,23 +115,123 @@ Window {
                 drawing = false
                 allPaths.push({path: currentPath, color: eraserMode ? eraserColor : penColor, lineWidth : eraserMode ? eraserRadius *2 : pencilWidth})
                 currentPath = []  // Reset current path for next drawing
+                allCanvases[currentPageIdx-1].allPaths = allPaths
+                allCanvases[currentPageIdx-1].bgColor  = bgColor
             }
         }
     }
 
-    Button {
-            anchors
-            {
-                top : parent.top
-                topMargin : 10
-                horizontalCenter : parent.horizontalCenter
-            }
-            text: "Toggle Eraser"
-            onClicked: {
-                eraserMode = !eraserMode
-                canvas.requestPaint()
-            }
+    Button
+    {
+        id : btn_prev
+        text: "Previous"
+        enabled : currentPageIdx > 1
+
+        anchors
+        {
+            top : btn_AddCanvas.top
+            left: parent.left
+            leftMargin : parent.width/14
         }
+        onClicked:
+        {
+            currentPageIdx--;
+            canvas.requestPaint()
+            bgColor = allCanvases[currentPageIdx -1].bgColor
+        }
+    }
+
+    Label
+    {
+        id : lbl_CurrentPage
+        text : `${currentPageIdx}/${totalPages}`
+        anchors
+        {
+            top : btn_prev.top
+            left: btn_prev.right
+            leftMargin : parent.width/40
+        }
+        font
+        {
+            pixelSize : 18
+        }
+    }
+
+    Button
+    {
+        id : btn_next
+        text: "Next"
+
+        enabled : currentPageIdx < totalPages
+
+        anchors
+        {
+            top : btn_AddCanvas.top
+            left: btn_prev.right
+            leftMargin : parent.width/14
+        }
+
+        onClicked:
+        {
+            currentPageIdx++;
+            canvas.requestPaint()
+            bgColor = allCanvases[currentPageIdx -1].bgColor
+        }
+    }
+    Button
+    {
+        id : btn_AddCanvas
+        text : "ADD"
+        anchors
+        {
+            top : btn_eraser.top
+            right : btn_eraser.left
+            rightMargin : 15
+        }
+        onClicked :
+        {
+            totalPages++
+            allCanvases.push({allPaths : [], bgColor : "white"})
+            currentPageIdx = totalPages
+            bgColor = allCanvases[currentPageIdx -1].bgColor
+            canvas.requestPaint()
+        }
+    }
+    Button {
+        id : btn_eraser
+        anchors
+        {
+            top : parent.top
+            topMargin : 10
+            horizontalCenter : parent.horizontalCenter
+        }
+        text: "Toggle Eraser"
+        onClicked: {
+            eraserMode = !eraserMode
+            canvas.requestPaint()
+        }
+    }
+    Button
+    {
+        id : btn_DeleteCanvas
+        text : "DELETE"
+        enabled : totalPages > 1
+        anchors
+        {
+            top : btn_eraser.top
+            left : btn_eraser.right
+            leftMargin : 15
+        }
+        onClicked :
+        {
+            allCanvases.splice(currentPageIdx-1, 1)
+            totalPages     = allCanvases.length
+            currentPageIdx--; currentPageIdx++; //// updating currentPageIdx, so that canvas gets forcefully updated
+            if(currentPageIdx > totalPages)
+                currentPageIdx = totalPages
+            canvas.requestPaint()
+        }
+    }
 
     // Pencil color palette on the left side
     Column {
@@ -140,7 +250,8 @@ Window {
             width: 40
             height: 40
             color: "black"
-            border.width: 1
+            border.color: "#ffd700"
+            border.width: (penColor === color) ? 10 : 1
             MouseArea {
                 anchors.fill: parent
                 onClicked:
@@ -153,7 +264,8 @@ Window {
             width: 40
             height: 40
             color: "red"
-            border.width: 1
+            border.color: "#ffd700"
+            border.width: (penColor === color) ? 10 : 1
             MouseArea {
                 anchors.fill: parent
                 onClicked:
@@ -166,7 +278,8 @@ Window {
             width: 40
             height: 40
             color: "blue"
-            border.width: 1
+            border.color: "#ffd700"
+            border.width: (penColor === color) ? 10 : 1
             MouseArea {
                 anchors.fill: parent
                 onClicked:
@@ -179,7 +292,7 @@ Window {
             width: 40
             height: 40
             color: "green"
-            border.width: 1
+            border.width: (penColor === color) ? 10 : 1
             MouseArea {
                 anchors.fill: parent
                 onClicked:
@@ -213,6 +326,7 @@ Window {
                 onClicked: {
                     bgColor = "white"
                     canvas.requestPaint()  // Redraw the canvas with the new background color
+                    allCanvases[currentPageIdx-1].bgColor  = bgColor
                 }
             }
         }
@@ -226,6 +340,7 @@ Window {
                 onClicked: {
                     bgColor = "lightgray"
                     canvas.requestPaint()  // Redraw the canvas with the new background color
+                    allCanvases[currentPageIdx-1].bgColor  = bgColor
                 }
             }
         }
@@ -239,6 +354,7 @@ Window {
                 onClicked: {
                     bgColor = "yellow"
                     canvas.requestPaint()  // Redraw the canvas with the new background color
+                    allCanvases[currentPageIdx-1].bgColor  = bgColor
                 }
             }
         }
@@ -252,6 +368,7 @@ Window {
                 onClicked: {
                     bgColor = "cyan"
                     canvas.requestPaint()  // Redraw the canvas with the new background color
+                    allCanvases[currentPageIdx-1].bgColor  = bgColor
                 }
             }
         }
@@ -266,8 +383,9 @@ Window {
         Button {
             text: "Clear"
             onClicked: {
-                allPaths = []
-                currentPath = []
+                allCanvases[currentPageIdx-1].allPaths = []
+                currentPath                            = []
+                currentPageIdx--; currentPageIdx++; //// updating currentPageIdx, so that canvas gets forcefully updated
                 canvas.requestPaint()
             }
         }
@@ -277,6 +395,77 @@ Window {
             onClicked: {
                 // Saving the canvas with the selected background color
                 canvas.save("whiteboard_with_background.png")
+                pdfWriter.sampleFunction()
+                savePopup.open()
+            }
+        }
+    }
+
+    FolderDialog {
+        id   : folderDialog
+        title: "Select a Folder to Save the PDF"
+        onAccepted:
+        {
+            console.log("Selected folder: " + selectedFolder)
+            pdfWriter.saveCanvasToPDF(selectedFolder, nameField.text, canvas.toDataURL())
+        }
+    }
+
+
+    Popup {
+        id: savePopup
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        modal: true
+        width: parent.width/3
+        height: 200
+
+        anchors
+        {
+            centerIn : parent
+        }
+
+        Rectangle
+        {
+            anchors
+            {
+                fill : parent
+            }
+
+            Column
+            {
+                anchors
+                {
+                    centerIn: parent
+                }
+                TextField {
+                    id: nameField
+                    placeholderText: "PDF's Name"
+                    placeholderTextColor: "#6C6C6C"
+                    width : parent.parent.width
+                    height: 40
+                    font.pixelSize: 18
+                    validator: RegularExpressionValidator {
+                        regularExpression: /^[a-zA-Z0-9_-]{1,40}$/
+                    }
+                    onAccepted:
+                    {
+                        if(text !== "")
+                        {
+                            folderDialog.open()
+                            savePopup.close()
+                        }
+                    }
+                }
+
+                Button {
+                    text: "Next"
+                    enabled : nameField.text !== ""
+
+                    onClicked: {
+                        folderDialog.open()
+                        savePopup.close()
+                    }
+                }
             }
         }
     }

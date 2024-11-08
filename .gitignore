@@ -49,8 +49,7 @@ release/
 *.dSYM/
 *.debug/
 
-# Other generated files
-*.qrc
+# Other generated filesS
 *.qmlc
 *.jsc
 *.cpp.bak
